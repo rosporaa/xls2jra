@@ -1,5 +1,7 @@
 #/sbin/python
+# -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
+# - change values coding and country, if needed
 # 2022 (c) ~Vlna~
 # Requirements: python3, pandas for python
 
@@ -25,14 +27,23 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def main(xlsfile, jsonfile):
+def main(xlsfile, jsonfile, coding, country):
   js = {}
   onemessage = {}
   messages = []
   numbers = []
+  isError = False
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
-  onemessage = {"coding": 4, "from":"", "content":"", "to":""}
+  onemessage = {"coding": coding, "from":"", "content":"", "to":""}
+
+  # test country in phone numbers
+  if len(country) > 0: 
+    maxnumlen = 12 - len(country)
+    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
+  else:
+    maxnumlen = 12
+    restr = '^[0-9]{' + str(maxnumlen) + '}$'
 
   # read xls[x] file in desired format
   # ONLY one column
@@ -56,14 +67,15 @@ def main(xlsfile, jsonfile):
       y = re.match('^421940682[0-9]{3}$', strr)
       if x == None  and  y == None:
         print (f"Bad format sender ID: {strr}")
-        sys.exit(6)
+        isError = True
+        continue
       onemessage['from'] = strr
       
     # 2nd row - message - max 254 characters, test coding
     if r == 1:
       if len(strr) > 254:
         print (f"Message too long ({len(strr)}): '{strr}'")
-        sys.exit(4)
+        isError = True
 
       if onemessage['coding'] == 0:
         c = test_gsm0338(strr)
@@ -71,7 +83,7 @@ def main(xlsfile, jsonfile):
           onemessage['content'] = strr
         else:
           print (f"Bad character in message: {c}. (GSM03.38)")
-          sys.exit(7)
+          isError = True
 
       if onemessage['coding'] == 4:          
         del (onemessage['content'])
@@ -80,11 +92,15 @@ def main(xlsfile, jsonfile):
 
     # next rows - phone numbers
     if r > 1:  
-      x = re.match('^[0-9]{12}$', strr)
+      x = re.match(restr, strr)
       if x == None:
         print (f"Bad phone number: '{strr}'")
-        sys.exit(5)
+        isError = True
+        continue
       numbers.append(strr)  
+
+  if isError == True:
+    sys.exit(4)
 
   js['messages'] = ""
   onemessage['to'] = numbers
@@ -101,7 +117,7 @@ def main(xlsfile, jsonfile):
 
   # create JSON file
   f = open(jsonfile, "w")
-  json.dump(js, f)
+  json.dump(js, f, ensure_ascii=False)
   f.close()
   #print (f"Output in file: {jsonfile}")
 
@@ -127,5 +143,10 @@ if __name__ == "__main__":
      
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
+
+  # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
+  coding = 4
+  # country - if not empty, chceck county prefix in phone numbers
+  country = "421"
   
-  main(sys.argv[1], f"sms_{dtm}.json")
+  main(sys.argv[1], f"sms_{dtm}.json", coding, country)
