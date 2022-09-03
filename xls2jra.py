@@ -42,8 +42,7 @@ def main(xlsfile, jsonfile, coding, country):
     maxnumlen = 12 - len(country)
     restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
   else:
-    maxnumlen = 12
-    restr = '^[0-9]{' + str(maxnumlen) + '}$'
+    restr = '^[0-9]{12}$'
 
   # read xls[x] file in desired format
   # ONLY one column
@@ -85,7 +84,7 @@ def main(xlsfile, jsonfile, coding, country):
           print (f"Bad character in message: {c}. (GSM03.38)")
           isError = True
 
-      if onemessage['coding'] == 4:          
+      if onemessage['coding'] == 4  or  onemessage['coding'] == 8:          
         del (onemessage['content'])
         onemessage['hex_content'] = strr.encode('utf-8').hex()
         # back: strr = bytes.fromhex(hex_content).decode('utf-8')
@@ -146,7 +145,7 @@ if __name__ == "__main__":
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   coding = 4
-  # country - if not empty, chceck county prefix in phone numbers
-  country = "421"
+  # country - if not empty, check county prefix in phone numbers
+  country = ""
   
   main(sys.argv[1], f"sms_{dtm}.json", coding, country)
