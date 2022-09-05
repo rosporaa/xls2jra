@@ -8,6 +8,8 @@
 import json, sys, re, os
 from datetime import datetime
 import pandas as pd
+# with pandas you need to install xlrd
+# if xlrd does not work (error: xlsx file not supported), install opepyxl
 #import gsm0338
 
 # test GSM03.38 characters in message
@@ -51,6 +53,7 @@ def main(xlsfile, jsonfile, coding, country):
   # next row(s) - phone number to deliver message
   try:
     df = pd.read_excel(xlsfile, header=None)
+    # df = pd.read_excel(xlsfile, header=None, engine='openpyxl')
   except ValueError as e:
     print (f"Excel file format error: {str(e)}")
     sys.exit(3)
@@ -84,10 +87,14 @@ def main(xlsfile, jsonfile, coding, country):
           print (f"Bad character in message: {c}. (GSM03.38)")
           isError = True
 
+      #if onemessage['coding'] == 4:          
+      #  del (onemessage['content'])
+      #  onemessage['hex_content'] = strr.encode('utf-8').hex()
+        # back: strr = bytes.fromhex(hex_content).decode('utf-8')
+
       if onemessage['coding'] == 4  or  onemessage['coding'] == 8:          
         del (onemessage['content'])
-        onemessage['hex_content'] = strr.encode('utf-8').hex()
-        # back: strr = bytes.fromhex(hex_content).decode('utf-8')
+        onemessage['hex_content'] = strr.encode('utf-16-be').hex()
 
     # next rows - phone numbers
     if r > 1:  
@@ -144,7 +151,7 @@ if __name__ == "__main__":
   dtm = now.strftime("%Y%m%d%H%M%S")
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
-  coding = 4
+  coding = 8
   # country - if not empty, check county prefix in phone numbers
   country = ""
   
