@@ -8,9 +8,10 @@
 import json, sys, re, os
 from datetime import datetime
 import pandas as pd
-#from openpyxl.utils.exceptions import InvalidFileException
 # with pandas you need to install xlrd
-# if xlrd does not work (error: xlsx file not supported), install opepyxl
+# if xlrd does not work (error: xlsx file not supported), install opepyxl and uncomment line below
+#from openpyxl.utils.exceptions import InvalidFileException
+
 #import gsm0338
 
 # test GSM03.38 characters in message
@@ -161,6 +162,6 @@ if __name__ == "__main__":
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   coding = 8
   # country - if not empty, check county prefix in phone numbers
-  country = ""
+  country = "421"
   
   main(sys.argv[1], f"sms_{dtm}.json", coding, country)
