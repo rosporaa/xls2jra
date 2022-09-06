@@ -8,6 +8,7 @@
 import json, sys, re, os
 from datetime import datetime
 import pandas as pd
+#from openpyxl.utils.exceptions import InvalidFileException
 # with pandas you need to install xlrd
 # if xlrd does not work (error: xlsx file not supported), install opepyxl
 #import gsm0338
@@ -55,10 +56,17 @@ def main(xlsfile, jsonfile, coding, country):
     df = pd.read_excel(xlsfile, header=None)
     # df = pd.read_excel(xlsfile, header=None, engine='openpyxl')
   except ValueError as e:
-    print (f"Excel file format error: {str(e)}")
+    print (f" *Excel file format error: {str(e)}")
     sys.exit(3)
+  except InvalidFileException as e:
+    print (f" *Excel file format error: {str(e)}")
+    sys.exit(3)
+
   maxrow = df.index[-1]  + 1
-  #print (maxrow)
+
+  if maxrow < 3:
+    print (" *Incomplete excel file")
+    sys.exit(5)
 
   for r in range (0, maxrow):
     strr = df.iloc[r, 0]
@@ -68,7 +76,7 @@ def main(xlsfile, jsonfile, coding, country):
       x = re.match('^(?=.*[\.\w])(?=.*[a-zA-Z]).{0,11}$', strr)
       y = re.match('^421940682[0-9]{3}$', strr)
       if x == None  and  y == None:
-        print (f"Bad format sender ID: {strr}")
+        print (f" *Bad format sender ID: {strr}")
         isError = True
         continue
       onemessage['from'] = strr
@@ -76,7 +84,7 @@ def main(xlsfile, jsonfile, coding, country):
     # 2nd row - message - max 254 characters, test coding
     if r == 1:
       if len(strr) > 254:
-        print (f"Message too long ({len(strr)}): '{strr}'")
+        print (f" *Message too long ({len(strr)}): '{strr}'")
         isError = True
 
       if onemessage['coding'] == 0:
@@ -84,7 +92,7 @@ def main(xlsfile, jsonfile, coding, country):
         if not c:
           onemessage['content'] = strr
         else:
-          print (f"Bad character in message: {c}. (GSM03.38)")
+          print (f" *Bad character in message: {c}. (GSM03.38)")
           isError = True
 
       #if onemessage['coding'] == 4:          
@@ -100,7 +108,7 @@ def main(xlsfile, jsonfile, coding, country):
     if r > 1:  
       x = re.match(restr, strr)
       if x == None:
-        print (f"Bad phone number: '{strr}'")
+        print (f" *Bad phone number: '{strr}'")
         isError = True
         continue
       numbers.append(strr)  
@@ -125,7 +133,7 @@ def main(xlsfile, jsonfile, coding, country):
   f = open(jsonfile, "w")
   json.dump(js, f, ensure_ascii=False)
   f.close()
-  #print (f"Output in file: {jsonfile}")
+  #print (f" *Output in file: {jsonfile}")
 
 
 # MAIN
@@ -144,7 +152,7 @@ if __name__ == "__main__":
     sys.exit(1)
 
   if not os.path.exists(sys.argv[1]):
-    print (f"File '{sys.argv[1]}' does not exist")
+    print (f" *File '{sys.argv[1]}' does not exist")
     sys.exit(2)
      
   now = datetime.now()
