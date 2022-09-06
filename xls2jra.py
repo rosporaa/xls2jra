@@ -46,7 +46,7 @@ def main(xlsfile, jsonfile, coding, country):
   numbers = []
   isError = False
   ncount = insertrow = ntn = 0
-  testnumbers = ["421111111111", "421111111111", "421111111111"]
+  testnumbers = [] # format ["789456123123", "987654321321"]
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
