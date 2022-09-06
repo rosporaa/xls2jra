@@ -1,7 +1,16 @@
 #/sbin/python
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
-# - change values coding and country, if needed
+# - change values coding, country and testnumbers
+# Coding  - use different coding page - values 0, 4, 8 (0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2)
+# Country - if not empty (""), check all numbers for prefix (example: country = "421") 
+# Testnumbers - insert testnumbers (international format without +) between numbers from excel to check delivery (idea by. Maros)
+# Excel file format:
+#  Only one column
+#   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
+#   2nd row (A2):      SMS text
+#   3rd and next rows: phone number - international format without +, example 421944123456
+# Output in file sms_YYYYMMDDHHMMSS.json
 # 2022 (c) ~Vlna~
 # Requirements: python3, pandas for python
 
@@ -12,7 +21,6 @@ import pandas as pd
 # if xlrd does not work (error: xlsx file not supported), install opepyxl and uncomment line below
 #from openpyxl.utils.exceptions import InvalidFileException
 
-#import gsm0338
 
 # test GSM03.38 characters in message
 def test_gsm0338(text):
@@ -37,6 +45,8 @@ def main(xlsfile, jsonfile, coding, country):
   messages = []
   numbers = []
   isError = False
+  ncount = insertrow = ntn = 0
+  testnumbers = ["421111111111", "421111111111", "421111111111"]
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
@@ -70,6 +80,8 @@ def main(xlsfile, jsonfile, coding, country):
     sys.exit(5)
 
   for r in range (0, maxrow):
+    if maxrow > 10  and  testnumbers:
+      insertrow = int(maxrow/len(testnumbers))
     strr = df.iloc[r, 0]
     
     # 1st row - sender ID -  (match) from O2
@@ -113,6 +125,13 @@ def main(xlsfile, jsonfile, coding, country):
         isError = True
         continue
       numbers.append(strr)  
+      # add testnumbers
+      ncount += 1
+      if testnumbers  and  insertrow  and  not ncount%insertrow:
+        x = re.match(restr, testnumbers[ntn])
+        if x != None  and  testnumbers[ntn]:
+          numbers.append(testnumbers[ntn])
+          ntn += 1
 
   if isError == True:
     sys.exit(4)
