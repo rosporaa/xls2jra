@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
 # - change values coding, country and testnumbers
-# Coding  - use different coding page - values 0, 4, 8 (0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2)
+# Coding  - use different coding page - accepted values 0, 4, 8 (0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2)
 # Country - if not empty (""), check all numbers for prefix (example: country = "421") 
 # Testnumbers - insert testnumbers (international format without +) between numbers from excel to check delivery (idea by. Maros)
 # Excel file format:
 #  Only one column
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
 #   2nd row (A2):      SMS text
-#   3rd and next rows: phone number - international format without +, example 421944123456
+#   3rd and next rows: phone number - international format without +, example 421987123456
 # Rows 1 and 2 are mandatory. Minimal one phone number is mandatory. Empty phone numbers(cells) will be skipped.
 # Output in file sms_YYYYMMDDHHMMSS.json
 # 2022 (c) ~Vlna~
@@ -41,14 +41,14 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def main(xlsfile, jsonfile, coding, country, nodupl, verbose):
+def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
   js = {}
   onemessage = {}
   messages = []
   numbers = []
   isError = False
   ncount = insertrow = ntn = 0
-  testnumbers = ["421111111111", "421111111111", "421111111111"] # format ["789456123123", "987654321321"]
+  testnumbers = [] # format ["789456123123", "987654321321"], nunbers dont need to be unique
   nullarray = []
   xlist = []
 
@@ -226,7 +226,7 @@ if __name__ == "__main__":
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
+  # data_coding - acepted 0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2
   coding = 8
   # country - if not empty, check county prefix in phone numbers
   country = "421"
@@ -237,4 +237,4 @@ if __name__ == "__main__":
   if "--verbose" in sys.argv:
     verbose = True
   
-  main(sys.argv[1], f"sms_{dtm}.json", coding, country, nodupl, verbose)
+  perform(sys.argv[1], f"sms_{dtm}.json", coding, country, nodupl, verbose)
