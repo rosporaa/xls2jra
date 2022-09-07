@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
-# - change values coding, country and testnumbers
+# - change values coding and country
 # Coding  - use different coding page - accepted values 0, 4, 8 (0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2)
 # Country - if not empty (""), check all numbers for prefix (example: country = "421") 
-# Testnumbers - insert testnumbers (international format without +) between numbers from excel to check delivery (idea by. Maros)
 # Excel file format:
 #  Only one column
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
@@ -41,28 +40,20 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
+def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers):
   js = {}
   onemessage = {}
   messages = []
   numbers = []
   isError = False
-  ncount = insertrow = ntn = 0
-  testnumbers = [] # format ["789456123123", "987654321321"], nunbers dont need to be unique
+  ncount = 0
+  insertrow = 0
+  ntn = 0
   nullarray = []
   xlist = []
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
-
-  # test country in phone numbers
-  if len(country) > 0: 
-    maxnumlen = 12 - len(country)
-    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
-  else:
-    restr = '^[0-9]{12}$'
-  if verbose:
-    print (f" - Country set to: '{country}'")
 
   # read xls[x] file in desired format
   # ONLY one column
@@ -160,6 +151,7 @@ def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
         print (f" *Bad phone number: '{strr}'")
         isError = True
         continue
+
       numbers.append(strr)  
       # add testnumbers
       ncount += 1
@@ -172,7 +164,7 @@ def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
           ntn += 1
 
   if not ncount:
-    print (" *No numbers found!")
+    print (" *No phone numbers found!")
     isError = True
 
   if isError == True:
@@ -181,13 +173,6 @@ def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
   js['messages'] = ""
   onemessage['to'] = numbers
   messages.append(onemessage)
-
-  # change data and add next message
-  #onemessage = {"from":"TEST SMS2", "content":"TEst SMS type 2", "to":""}
-  #numbers = []
-  #numbers.append("CISLOOOOOO")
-  #onemessage['to'] = numbers
-  #messages.append(onemessage)
 
   js['messages'] = messages
 
@@ -203,11 +188,20 @@ def perform(xlsfile, jsonfile, coding, country, nodupl, verbose):
 if __name__ == "__main__":
   nodupl = False
   verbose = False
+  testnumbers = []
+
+  # SET VALUES:
+  # data_coding - acepted 0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2
+  coding = 8
+  # country - if not empty, check county prefix in phone numbers
+  country = "421"
+
 
   if len(sys.argv) < 2:
     print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose]")
     print (" --nodupl  - dont test duplicate phone numbers")
     print (" --verbose - print some informations")    
+    print (" --tn:PHONENUM:PHONENUM - testing phone numbers, delimiter :")
     print ("\nXLS format: Only one column")
     print ("            1st row: Sender ID or phone number")
     print ("            2nd row: SMS text")
@@ -222,19 +216,38 @@ if __name__ == "__main__":
   if not os.path.exists(sys.argv[1]):
     print (f" *File '{sys.argv[1]}' does not exist")
     sys.exit(2)
-     
-  now = datetime.now()
-  dtm = now.strftime("%Y%m%d%H%M%S")
 
-  # data_coding - acepted 0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2
-  coding = 8
-  # country - if not empty, check county prefix in phone numbers
-  country = "421"
+  # test country in phone numbers - make regexp
+  if len(country) > 0: 
+    maxnumlen = 12 - len(country)
+    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
+  else:
+    restr = '^[0-9]{12}$'
 
   if "--nodupl" in sys.argv:
     nodupl = True
 
   if "--verbose" in sys.argv:
     verbose = True
-  
-  perform(sys.argv[1], f"sms_{dtm}.json", coding, country, nodupl, verbose)
+
+  if verbose:
+    print (f" - Country set to: '{country}'")
+    print (f" - Coding set to:  {coding}")
+
+  for sa in sys.argv:
+    tn = re.search("--tn(:[0-9]{12})+", sa)
+    if tn != None:
+      tnx = tn.group().strip().split(':')
+      for i in range(1, len(tnx)):
+        # testing proper format
+        x = re.match(restr, tnx[i])
+        if x != None:
+          testnumbers.append(tnx[i])
+      if verbose:
+        print (f" - Test numbers: {testnumbers}")
+      break
+
+  now = datetime.now()
+  dtm = now.strftime("%Y%m%d%H%M%S")
+
+  perform(sys.argv[1], f"sms_{dtm}.json", coding, restr, nodupl, verbose, testnumbers)
