@@ -10,11 +10,13 @@
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
 #   2nd row (A2):      SMS text
 #   3rd and next rows: phone number - international format without +, example 421944123456
+# Rows 1 and 2 are mandatory. Minimal one phone number is mandatory. Empty phone numbers(cells) will be skipped.
 # Output in file sms_YYYYMMDDHHMMSS.json
 # 2022 (c) ~Vlna~
 # Requirements: python3, pandas for python
 
 import json, sys, re, os
+import unicodedata
 from datetime import datetime
 import pandas as pd
 # with pandas you need to install xlrd
@@ -48,6 +50,7 @@ def main(xlsfile, jsonfile, coding, country):
   ncount = insertrow = ntn = 0
   testnumbers = [] # format ["789456123123", "987654321321"]
   nullarray = []
+  xlist = []
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
@@ -74,7 +77,15 @@ def main(xlsfile, jsonfile, coding, country):
     print (f" *Excel file format error: {str(e)}")
     sys.exit(3)
 
+  # duplicity
+  x = df.value_counts()
+  xlist = x[x>1].index.tolist()
+  if len(xlist) > 0:
+    print (f" *Found duplicity: {str(xlist)}")
+    sys.exit(7)
+
   maxrow = len(df.iloc[:, 0]) #df.index.stop #df.index[-1]  + 1
+  # row 1 and 2 are mandatory, minimal 1 phone number is mandadory
   nullarray = df.isnull()
 
   if maxrow < 3:
@@ -86,7 +97,7 @@ def main(xlsfile, jsonfile, coding, country):
     if maxrow > 10  and  testnumbers:
       insertrow = int(maxrow/len(testnumbers))
 
-    strr = df.iloc[r, 0]
+    strr = str(df.iloc[r, 0])
     
     # 1st row - sender ID -  (match) from O2
     if r == 0:
@@ -119,12 +130,16 @@ def main(xlsfile, jsonfile, coding, country):
           print (f" *Bad character in message: {c}. (GSM03.38)")
           isError = True
 
-      #if onemessage['coding'] == 4:          
-      #  del (onemessage['content'])
-      #  onemessage['hex_content'] = strr.encode('utf-8').hex()
+      if onemessage['coding'] == 4:          
+        del (onemessage['content'])
+        xtmp = unicodedata.normalize('NFKD', strr)
+        onemessage['hex_content'] = xtmp.encode('ascii', 'ignore').hex()
+
+        # other codepages:
+        #   onemessage['hex_content'] = strr.encode('utf-8').hex()
         # back: strr = bytes.fromhex(hex_content).decode('utf-8')
 
-      if onemessage['coding'] == 4  or  onemessage['coding'] == 8:          
+      if onemessage['coding'] == 8:          
         del (onemessage['content'])
         onemessage['hex_content'] = strr.encode('utf-16-be').hex()
 
@@ -133,12 +148,12 @@ def main(xlsfile, jsonfile, coding, country):
       if nullarray[0][r]:
         continue
 
-      x = re.match(restr, str(strr))
+      x = re.match(restr, strr)
       if x == None:
         print (f" *Bad phone number: '{strr}'")
         isError = True
         continue
-      numbers.append(str(strr))  
+      numbers.append(strr)  
       # add testnumbers
       ncount += 1
       if testnumbers  and  insertrow  and  not ncount%insertrow:
