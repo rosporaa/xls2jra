@@ -19,7 +19,7 @@ from datetime import datetime
 import pandas as pd
 # with pandas you need to install xlrd
 # if xlrd does not work (error: xlsx file not supported), install opepyxl and uncomment line below
-#from openpyxl.utils.exceptions import InvalidFileException
+from openpyxl.utils.exceptions import InvalidFileException
 
 
 # test GSM03.38 characters in message
@@ -47,6 +47,7 @@ def main(xlsfile, jsonfile, coding, country):
   isError = False
   ncount = insertrow = ntn = 0
   testnumbers = [] # format ["789456123123", "987654321321"]
+  nullarray = []
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
@@ -64,8 +65,8 @@ def main(xlsfile, jsonfile, coding, country):
   # 2nd row - message (GSM03.38 chars, length max 256),
   # next row(s) - phone number to deliver message
   try:
-    df = pd.read_excel(xlsfile, header=None)
-    # df = pd.read_excel(xlsfile, header=None, engine='openpyxl')
+    #df = pd.read_excel(xlsfile, header=None)
+    df = pd.read_excel(xlsfile, header=None, engine='openpyxl')
   except ValueError as e:
     print (f" *Excel file format error: {str(e)}")
     sys.exit(3)
@@ -73,19 +74,25 @@ def main(xlsfile, jsonfile, coding, country):
     print (f" *Excel file format error: {str(e)}")
     sys.exit(3)
 
-  maxrow = df.index[-1]  + 1
+  maxrow = len(df.iloc[:, 0]) #df.index.stop #df.index[-1]  + 1
+  nullarray = df.isnull()
 
   if maxrow < 3:
     print (" *Incomplete excel file")
     sys.exit(5)
 
   for r in range (0, maxrow):
+    # where to insert test numbers
     if maxrow > 10  and  testnumbers:
       insertrow = int(maxrow/len(testnumbers))
+
     strr = df.iloc[r, 0]
     
     # 1st row - sender ID -  (match) from O2
     if r == 0:
+      if nullarray[0][r]:
+        print (" *Error: 1st line empty!")
+        sys.exit(6)
       x = re.match('^(?=.*[\.\w])(?=.*[a-zA-Z]).{0,11}$', strr)
       y = re.match('^421940682[0-9]{3}$', strr)
       if x == None  and  y == None:
@@ -96,6 +103,10 @@ def main(xlsfile, jsonfile, coding, country):
       
     # 2nd row - message - max 254 characters, test coding
     if r == 1:
+      if nullarray[0][r]:
+        print (" *Error: 2st line empty!")
+        sys.exit(6)
+
       if len(strr) > 254:
         print (f" *Message too long ({len(strr)}): '{strr}'")
         isError = True
@@ -119,12 +130,15 @@ def main(xlsfile, jsonfile, coding, country):
 
     # next rows - phone numbers
     if r > 1:  
-      x = re.match(restr, strr)
+      if nullarray[0][r]:
+        continue
+
+      x = re.match(restr, str(strr))
       if x == None:
         print (f" *Bad phone number: '{strr}'")
         isError = True
         continue
-      numbers.append(strr)  
+      numbers.append(str(strr))  
       # add testnumbers
       ncount += 1
       if testnumbers  and  insertrow  and  not ncount%insertrow:
@@ -132,6 +146,10 @@ def main(xlsfile, jsonfile, coding, country):
         if x != None  and  testnumbers[ntn]:
           numbers.append(testnumbers[ntn])
           ntn += 1
+
+  if not ncount:
+    print (" *No numbers found!")
+    isError = True
 
   if isError == True:
     sys.exit(4)
