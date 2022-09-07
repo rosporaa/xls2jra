@@ -1,4 +1,4 @@
-#/sbin/python
+#/usr/bin/python3
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
 # - change values coding, country and testnumbers
@@ -41,14 +41,14 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def main(xlsfile, jsonfile, coding, country):
+def main(xlsfile, jsonfile, coding, country, nodupl, verbose):
   js = {}
   onemessage = {}
   messages = []
   numbers = []
   isError = False
   ncount = insertrow = ntn = 0
-  testnumbers = [] # format ["789456123123", "987654321321"]
+  testnumbers = ["421111111111", "421111111111", "421111111111"] # format ["789456123123", "987654321321"]
   nullarray = []
   xlist = []
 
@@ -61,6 +61,8 @@ def main(xlsfile, jsonfile, coding, country):
     restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
   else:
     restr = '^[0-9]{12}$'
+  if verbose:
+    print (f" - Country set to: '{country}'")
 
   # read xls[x] file in desired format
   # ONLY one column
@@ -78,25 +80,30 @@ def main(xlsfile, jsonfile, coding, country):
     sys.exit(3)
 
   # duplicity
-  x = df.value_counts()
-  xlist = x[x>1].index.tolist()
-  if len(xlist) > 0:
-    print (f" *Found duplicity: {str(xlist)}")
-    sys.exit(7)
+  if nodupl == False:
+    x = df.value_counts()
+    xlist = x[x>1].index.tolist()
+    if len(xlist) > 0:
+      print (f" *Found duplicity: {str(xlist)}")
+      sys.exit(7)
 
   maxrow = len(df.iloc[:, 0]) #df.index.stop #df.index[-1]  + 1
   # row 1 and 2 are mandatory, minimal 1 phone number is mandadory
   nullarray = df.isnull()
+  natmp = nullarray
+  countNotNULL = natmp[natmp[0] == False].count()
 
   if maxrow < 3:
     print (" *Incomplete excel file")
     sys.exit(5)
 
-  for r in range (0, maxrow):
-    # where to insert test numbers
-    if maxrow > 10  and  testnumbers:
-      insertrow = int(maxrow/len(testnumbers))
+  # where to insert test numbers
+  if (countNotNULL[0] - 2) > 12  and  testnumbers:          # minus 1st and second row
+    insertrow = int((countNotNULL[0] - 2)/len(testnumbers))
+    if verbose:
+      print (f" - NonEpty rows: {countNotNULL[0]}, Test numbers: {len(testnumbers)}, Insert every: {insertrow}")
 
+  for r in range (0, maxrow):
     strr = str(df.iloc[r, 0])
     
     # 1st row - sender ID -  (match) from O2
@@ -156,10 +163,12 @@ def main(xlsfile, jsonfile, coding, country):
       numbers.append(strr)  
       # add testnumbers
       ncount += 1
-      if testnumbers  and  insertrow  and  not ncount%insertrow:
+      if testnumbers  and  len(testnumbers) > ntn  and  insertrow > 1  and  ncount%insertrow == 0:
         x = re.match(restr, testnumbers[ntn])
-        if x != None  and  testnumbers[ntn]:
+        if x != None:
           numbers.append(testnumbers[ntn])
+          if verbose:
+            print (f" - Adding test number, position {ncount + ntn + 1}: {testnumbers[ntn]}")
           ntn += 1
 
   if not ncount:
@@ -186,18 +195,24 @@ def main(xlsfile, jsonfile, coding, country):
   f = open(jsonfile, "w")
   json.dump(js, f, ensure_ascii=False)
   f.close()
-  #print (f" *Output in file: {jsonfile}")
+  if verbose:
+    print (f" - Output in file: {jsonfile}")
 
 
 # MAIN
 if __name__ == "__main__":
+  nodupl = False
+  verbose = False
+
   if len(sys.argv) < 2:
-    print (f"Usage: python {sys.argv[0]} xlsfile")
-    print ("XLS format: Only one column")
+    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose]")
+    print (" --nodupl  - dont test duplicate phone numbers")
+    print (" --verbose - print some informations")    
+    print ("\nXLS format: Only one column")
     print ("            1st row: Sender ID or phone number")
     print ("            2nd row: SMS text")
     print ("            3rd and next rows: phone number")
-    print ("Output in file sms_YYYYMMDDHHMMSS.json")
+    print ("\nOutput in file sms_YYYYMMDDHHMMSS.json")
     print ("Recommendation: Validate output with jq")
     # jq .messages[].to[] sms_.json | wc -l
     # jq .messages[].content sms_.json
@@ -215,5 +230,11 @@ if __name__ == "__main__":
   coding = 8
   # country - if not empty, check county prefix in phone numbers
   country = "421"
+
+  if "--nodupl" in sys.argv:
+    nodupl = True
+
+  if "--verbose" in sys.argv:
+    verbose = True
   
-  main(sys.argv[1], f"sms_{dtm}.json", coding, country)
+  main(sys.argv[1], f"sms_{dtm}.json", coding, country, nodupl, verbose)
