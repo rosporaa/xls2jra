@@ -1,4 +1,4 @@
-#/usr/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
 # - change values coding, country and testnumbers
