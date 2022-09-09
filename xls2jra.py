@@ -59,7 +59,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   # read xls[x] file in desired format
   # ONLY one column
   # 1st row - sender ID (or phone number), 
-  # 2nd row - message (GSM03.38 chars, length max 256),
+  # 2nd row - message, length max maxsmslen,
   # next row(s) - phone number to deliver message
   try:
     #df = pd.read_excel(xlsfile, header=None)
