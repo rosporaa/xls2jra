@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API JSON
-# - change values coding and country
+# - change values coding, country and maxsmslen
 # Coding  - use different coding page - accepted values 0, 4, 8 (0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2)
 # Country - if not empty (""), check all numbers for prefix (example: country = "421") 
+# Maxsmslen - maximum characters in sms text
 # Excel file format:
 #  Only one column
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
@@ -40,7 +41,7 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers):
+def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen):
   js = {}
   onemessage = {}
   messages = []
@@ -110,13 +111,13 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers):
         continue
       onemessage['from'] = strr
       
-    # 2nd row - message - max 254 characters, test coding
+    # 2nd row - message - maxsmslen characters, test coding
     if r == 1:
       if nullarray[0][r]:
         print (" *Error: 2st line empty!")
         sys.exit(6)
 
-      if len(strr) > 254:
+      if len(strr) > maxsmslen:
         print (f" *Message too long ({len(strr)}): '{strr}'")
         isError = True
 
@@ -195,6 +196,8 @@ if __name__ == "__main__":
   coding = 8
   # country - if not empty, check county prefix in phone numbers
   country = "421"
+  # maximim characters in SMS
+  maxsmslen = 160
 
 
   if len(sys.argv) < 2:
@@ -232,7 +235,8 @@ if __name__ == "__main__":
 
   if verbose:
     print (f" - Country set to: '{country}'")
-    print (f" - Coding set to:  {coding}")
+    print (f" - Coding set to:   {coding}")
+    print (f" - Max. sms length: {maxsmslen}")
 
   for sa in sys.argv:
     tn = re.search("--tn(:[0-9]{12})+", sa)
@@ -250,4 +254,4 @@ if __name__ == "__main__":
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(sys.argv[1], f"sms_{dtm}.json", coding, restr, nodupl, verbose, testnumbers)
+  perform(sys.argv[1], f"sms_{dtm}.json", coding, restr, nodupl, verbose, testnumbers, maxsmslen)
