@@ -196,12 +196,12 @@ if __name__ == "__main__":
   coding = 8
   # country - if not empty, check county prefix in phone numbers
   country = "421"
-  # maximim characters in SMS
+  # maximum characters in SMS
   maxsmslen = 160
 
 
   if len(sys.argv) < 2:
-    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose]")
+    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM]")
     print (" --nodupl  - dont test duplicate phone numbers")
     print (" --verbose - print some informations")    
     print (" --tn:PHONENUM:PHONENUM - testing phone numbers, delimiter :")
