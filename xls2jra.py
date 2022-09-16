@@ -210,7 +210,6 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
       f.close()
       if verbose:
         print (f" - Output in file: {jsonfile}_{str(fid)}.json")
-
   else:     # one file
     js['messages'] = ""
     onemessage['to'] = numbers
@@ -232,22 +231,19 @@ if __name__ == "__main__":
   verbose = False
   testnumbers = []
   maxpn = 0
-
-  # SET VALUES:
-  # data_coding - acepted 0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2
-  coding = 8
-  # country - if not empty, check county prefix in phone numbers
-  country = "421"
-  # maximum characters in SMS
-  maxsmslen = 160
-
+  coding = 8       # default
+  country = "421"  # default
+  maxsmslen = 160  # default
 
   if len(sys.argv) < 2:
-    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM] [--maxpn:NUMBER]")
-    print (" --nodupl  - dont test duplicate phone numbers")
+    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM] [--maxpn:NUMBER] [--maxSMSlen:NUMBER] [--dataCoding:NUMBER] [--country:NUMBER]")
+    print (" --nodupl - dont test duplicate phone numbers")
     print (" --verbose - print some informations")    
     print (" --tn:PHONENUM:PHONENUM - testing phone numbers, delimiter :")
-    print (" --maxpn:NUMBER - maximum phone numbers in output file = divide output to files")
+    print (" --maxpn:NUMBER - maximum number of phone numbers in output file = divide output to files")
+    print (" --maxSMSlen:NUMBER - maximum characters in message (default: 160)")
+    print (" --dataCoding:NUMBER - data coding in SMS (supported 0, 4, 8) (default: 8 - UCS2)")
+    print (" --country:NUMBER - country prefix number (default: 421)")
     print ("\nXLS format: Only one column")
     print ("            1st row: Sender ID or phone number")
     print ("            2nd row: SMS text")
@@ -263,23 +259,11 @@ if __name__ == "__main__":
     print (f" *File '{sys.argv[1]}' does not exist")
     sys.exit(2)
 
-  # test country in phone numbers - make regexp
-  if len(country) > 0: 
-    maxnumlen = 12 - len(country)
-    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
-  else:
-    restr = '^[0-9]{12}$'
-
   if "--nodupl" in sys.argv:
     nodupl = True
 
   if "--verbose" in sys.argv:
     verbose = True
-
-  if verbose:
-    print (f" - Country set to: '{country}'")
-    print (f" - Coding set to:   {coding}")
-    print (f" - Max. sms length: {maxsmslen}")
 
   for sa in sys.argv:
     tn = re.search("--tn(:[0-9]{12})+", sa)
@@ -301,7 +285,34 @@ if __name__ == "__main__":
         print (f" - Max. numbers in output: {maxpn}")
       continue
 
+    tn = re.search("--maxSMSlen:[0-9]{1,3}", sa)
+    if tn != None:
+      maxsmslen = tn.group().split(':')[1]
+      continue
+
+    tn = re.search("--dataCoding:[0-9]{1}", sa)
+    if tn != None:
+      coding = tn.group().split(':')[1]
+      continue
+
+    tn = re.search("--country:[0-9]{3}", sa)
+    if tn != None:
+      country = tn.group().split(':')[1]
+      continue
+
+  if verbose:
+    print (f" - Max. SMS length: {maxsmslen}")
+    print (f" - Country set to: '{country}'")
+    print (f" - Coding set to:   {coding}")
+
+  # test country in phone numbers - make regexp
+  if len(country) > 0: 
+    maxnumlen = 12 - len(country)
+    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
+  else:
+    restr = '^[0-9]{12}$'
+
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(sys.argv[1], f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, int(maxpn))
+  perform(sys.argv[1], f"sms_{dtm}", int(coding), restr, nodupl, verbose, testnumbers, int(maxsmslen), int(maxpn))
