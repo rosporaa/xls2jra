@@ -41,7 +41,7 @@ def test_gsm0338(text):
 
 
 # perform all actions
-def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen):
+def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn):
   js = {}
   onemessage = {}
   messages = []
@@ -171,18 +171,59 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   if isError == True:
     sys.exit(4)
 
-  js['messages'] = ""
-  onemessage['to'] = numbers
-  messages.append(onemessage)
+  # divide files
+  if maxpn > 0  and  len(numbers) > maxpn:
+    fid = 0
+    tmpnum = []
+    for i in range(0, len(numbers)):
+      if i > 0  and  i%maxpn == 0:
+        js['messages'] = ""
+        onemessage['to'] = tmpnum
+        messages.append(onemessage)
 
-  js['messages'] = messages
+        js['messages'] = messages
 
-  # create JSON file
-  f = open(jsonfile, "w")
-  json.dump(js, f, ensure_ascii=False)
-  f.close()
-  if verbose:
-    print (f" - Output in file: {jsonfile}")
+        # create JSON file
+        f = open(jsonfile+"_"+ str(fid) +".json", "w")
+        json.dump(js, f, ensure_ascii=False)
+        f.close()
+        if verbose:
+          print (f" - Output in file: {jsonfile}_{str(fid)}.json")
+
+        tmpnum = []
+        onemessage['to'] = []
+        messages = []
+        fid = fid + 1
+
+      tmpnum.append(numbers[i])      
+    
+    if len(tmpnum) > 0:  # last file
+      js['messages'] = ""
+      onemessage['to'] = tmpnum
+      messages.append(onemessage)
+
+      js['messages'] = messages
+
+      # create JSON file
+      f = open(jsonfile+"_"+ str(fid) +".json", "w")
+      json.dump(js, f, ensure_ascii=False)
+      f.close()
+      if verbose:
+        print (f" - Output in file: {jsonfile}_{str(fid)}.json")
+
+  else:     # one file
+    js['messages'] = ""
+    onemessage['to'] = numbers
+    messages.append(onemessage)
+
+    js['messages'] = messages
+
+    # create JSON file
+    f = open(jsonfile+".json", "w")
+    json.dump(js, f, ensure_ascii=False)
+    f.close()
+    if verbose:
+      print (f" - Output in file: {jsonfile}.json")
 
 
 # MAIN
@@ -190,6 +231,7 @@ if __name__ == "__main__":
   nodupl = False
   verbose = False
   testnumbers = []
+  maxpn = 0
 
   # SET VALUES:
   # data_coding - acepted 0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2
@@ -201,10 +243,11 @@ if __name__ == "__main__":
 
 
   if len(sys.argv) < 2:
-    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM]")
+    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM] [--maxpn:NUMBER]")
     print (" --nodupl  - dont test duplicate phone numbers")
     print (" --verbose - print some informations")    
     print (" --tn:PHONENUM:PHONENUM - testing phone numbers, delimiter :")
+    print (" --maxpn:NUMBER - maximum phone numbers in output file = divide output to files")
     print ("\nXLS format: Only one column")
     print ("            1st row: Sender ID or phone number")
     print ("            2nd row: SMS text")
@@ -249,9 +292,16 @@ if __name__ == "__main__":
           testnumbers.append(tnx[i])
       if verbose:
         print (f" - Test numbers: {testnumbers}")
-      break
+      continue
+
+    tn = re.search("--maxpn:[0-9]{1,5}", sa)
+    if tn != None:
+      maxpn = tn.group().split(':')[1]
+      if verbose:
+        print (f" - Max. numbers in output: {maxpn}")
+      continue
 
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(sys.argv[1], f"sms_{dtm}.json", coding, restr, nodupl, verbose, testnumbers, maxsmslen)
+  perform(sys.argv[1], f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, int(maxpn))
