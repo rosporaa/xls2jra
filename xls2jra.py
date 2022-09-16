@@ -1,17 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# xls2jra - XLS to Jasmin REST API JSON
-# - change values coding, country and maxsmslen
-# Coding  - use different coding page - accepted values 0, 4, 8 (0 -> GSM03.38, 4 -> 8-bit binary, 8 -> UCS2)
-# Country - if not empty (""), check all numbers for prefix (example: country = "421") 
-# Maxsmslen - maximum characters in sms text
-# Excel file format:
+# xls2jra - XLS to Jasmin REST API, JSON output
+# Excel file format (input file):
 #  Only one column
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
 #   2nd row (A2):      SMS text
 #   3rd and next rows: phone number - international format without +, example 421987123456
 # Rows 1 and 2 are mandatory. Minimal one phone number is mandatory. Empty phone numbers(cells) will be skipped.
 # Output in file sms_YYYYMMDDHHMMSS.json
+# With argument maxpn output will be divided to files sms_YYYYMMDDHHMMSS_N.json 
 # 2022 (c) ~Vlna~
 # Requirements: python3, pandas for python
 
@@ -171,7 +168,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   if isError == True:
     sys.exit(4)
 
-  # divide files
+  # divide output to files
   if maxpn > 0  and  len(numbers) > maxpn:
     fid = 0
     tmpnum = []
@@ -210,7 +207,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
       f.close()
       if verbose:
         print (f" - Output in file: {jsonfile}_{str(fid)}.json")
-  else:     # one file
+  else:     # one output file
     js['messages'] = ""
     onemessage['to'] = numbers
     messages.append(onemessage)
@@ -235,6 +232,7 @@ if __name__ == "__main__":
   country = "421"  # default
   maxsmslen = 160  # default
 
+  # help
   if len(sys.argv) < 2:
     print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM] [--maxpn:NUMBER] [--maxSMSlen:NUMBER] [--dataCoding:NUMBER] [--country:NUMBER]")
     print (" --nodupl - dont test duplicate phone numbers")
