@@ -231,8 +231,9 @@ if __name__ == "__main__":
   testnumbers = []
   maxpn = 0
   coding = 8       # default
-  country = "421"  # default
+  country = ""     # default
   maxsmslen = 160  # default
+  pnlen = 12       # phone number length -> 4210948123456 - set for your country
 
   arg_epilog = """
   XLS format: Only one column
@@ -243,14 +244,14 @@ if __name__ == "__main__":
   Recommendation: Validate output with jq"""
 
   argp = argparse.ArgumentParser(description="XLS to Jasmin REST API, output JSON", epilog=arg_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-  argp.add_argument("xlsfile",      help="XLS filename")
-  argp.add_argument("--nodupl",     help="Dont test duplicate phone numbers", action='store_true')
-  argp.add_argument("--verbose",    help="Print more information", action='store_true')  
-  argp.add_argument("--tn",         help="Testing phone numbers", nargs="+", type=int)  
-  argp.add_argument("--maxpn",      help="Maximum number of phone numbers in output file = divide output to files", type=int, default=0)    
-  argp.add_argument("--maxSMSlen",  help="Maximum characters in message (default: 160)", type=int, default=160)      
-  argp.add_argument("--dataCoding", help="Data coding in SMS (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])      
-  argp.add_argument("--country",    help="Country prefix number (default: 421)", type=str, default="421")      
+  argp.add_argument("xlsfile",      help="XLS filename (mandatory)")
+  argp.add_argument("--verbose",    help="print more information", action='store_true')    
+  argp.add_argument("--nodupl",     help="don't test duplicate phone numbers", action='store_true')
+  argp.add_argument("--tn",         help="testing phone numbers", nargs="+", type=int)  
+  argp.add_argument("--maxpn",      help="maximum number of phone numbers in output file = divide output to files", type=int, default=0)    
+  argp.add_argument("--maxSMSlen",  help="maximum characters in message (default: 160)", type=int, default=160)      
+  argp.add_argument("--dataCoding", help="message text coding (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])      
+  argp.add_argument("--country",    help="check country prefix", type=str, default="")      
   # jq .messages[].to[] sms_.json | wc -l
   # jq .messages[].content sms_.json
   # jq .messages[].from sms_.json
@@ -263,10 +264,24 @@ if __name__ == "__main__":
 
   nodupl = allargs.nodupl
   verbose = allargs.verbose
+  maxsmslen = allargs.maxSMSlen
+  coding = allargs.dataCoding
+  country = allargs.country
+
+  # test country in phone numbers - make regexp
+  if len(country) > 0:
+    tn = re.search("^[0-9]{1,4}$", country)
+    if tn == None:
+      print (f" *Bad country prefix: {country}")
+      sys.exit(8)
+    maxnumlen = pnlen - len(country)
+    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
+  else:
+    restr = '^[0-9]{' + str(pnlen) + '}$'
 
   if allargs.tn:
     for i in allargs.tn:
-      tn = re.search("[0-9]{12}", str(i))
+      tn = re.search(restr, str(i))
       if tn != None:
         testnumbers.append(str(i))
       else:
@@ -279,29 +294,13 @@ if __name__ == "__main__":
     if verbose:
       print (f" - Max. numbers in output: {maxpn}")
 
-  maxsmslen = allargs.maxSMSlen
-  coding = allargs.dataCoding
-  country = allargs.country
-
-  tn = re.search("^[0-9]{3}$", country)
-  if tn == None:
-    print (f" *Bad country prefix: {country}")
-    sys.exit(9)
-
   if verbose:
-    print (" - Test duplicity:  " + ("True" if not nodupl else "False") )
-    print (f" - Max. SMS length: {maxsmslen}")
-    print (f" - Country set to: '{country}'")
-    print (f" - Coding set to:   {coding}")
-
-  # test country in phone numbers - make regexp
-  if len(country) > 0: 
-    maxnumlen = 12 - len(country)
-    restr = '^' + country + '[0-9]{' + str(maxnumlen) + '}$'
-  else:
-    restr = '^[0-9]{12}$'
+    print (" - Test duplicity:      " + ("True" if not nodupl else "False") )
+    print (f" - Max. SMS length:     {maxsmslen}")
+    print (" - Check county prefix: " + ("No" if not len(country) else  f"'{country}'"))
+    print (f" - Coding set to:       {coding}")
 
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(allargs.xlsfile, f"sms_{dtm}", int(coding), restr, nodupl, verbose, testnumbers, int(maxsmslen), int(maxpn))
+  perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn)
