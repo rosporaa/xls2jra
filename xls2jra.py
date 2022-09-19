@@ -15,6 +15,7 @@
 import json, sys, re, os
 import unicodedata
 from datetime import datetime
+import argparse
 import pandas as pd
 # with pandas you need to install xlrd
 # if xlrd does not work (error: xlsx file not supported), install opepyxl and uncomment line below
@@ -125,8 +126,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         else:
           print (f" *Bad character in message: {c}. (GSM03.38)")
           isError = True
-
-      if onemessage['coding'] == 4:          
+      elif onemessage['coding'] == 4:          
         del (onemessage['content'])
         xtmp = unicodedata.normalize('NFKD', strr)
         onemessage['hex_content'] = xtmp.encode('ascii', 'ignore').hex()
@@ -134,10 +134,12 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         # other codepages:
         #   onemessage['hex_content'] = strr.encode('utf-8').hex()
         # back: strr = bytes.fromhex(hex_content).decode('utf-8')
-
-      if onemessage['coding'] == 8:          
+      elif onemessage['coding'] == 8:          
         del (onemessage['content'])
         onemessage['hex_content'] = strr.encode('utf-16-be').hex()
+      else:
+        print (f" *Unsupported message coding: '{str(onemessage['coding'])}'")
+        isError = True
 
     # next rows - phone numbers
     if r > 1:  
@@ -232,73 +234,62 @@ if __name__ == "__main__":
   country = "421"  # default
   maxsmslen = 160  # default
 
-  # help
-  if len(sys.argv) < 2:
-    print (f"Usage: python {sys.argv[0]} xlsfile [--nodupl] [--verbose] [--tn:PHONENUM:PHONENUM] [--maxpn:NUMBER] [--maxSMSlen:NUMBER] [--dataCoding:NUMBER] [--country:NUMBER]")
-    print (" --nodupl - dont test duplicate phone numbers")
-    print (" --verbose - print some informations")    
-    print (" --tn:PHONENUM:PHONENUM - testing phone numbers, delimiter :")
-    print (" --maxpn:NUMBER - maximum number of phone numbers in output file = divide output to files")
-    print (" --maxSMSlen:NUMBER - maximum characters in message (default: 160)")
-    print (" --dataCoding:NUMBER - data coding in SMS (supported 0, 4, 8) (default: 8 - UCS2)")
-    print (" --country:NUMBER - country prefix number (default: 421)")
-    print ("\nXLS format: Only one column")
-    print ("            1st row: Sender ID or phone number")
-    print ("            2nd row: SMS text")
-    print ("            3rd and next rows: phone number")
-    print ("\nOutput in file sms_YYYYMMDDHHMMSS.json")
-    print ("Recommendation: Validate output with jq")
-    # jq .messages[].to[] sms_.json | wc -l
-    # jq .messages[].content sms_.json
-    # jq .messages[].from sms_.json
-    sys.exit(1)
+  arg_epilog = """
+  XLS format: Only one column
+    1st row: Sender ID or phone number
+    2nd row: SMS text
+    3rd and next rows: phone number
+  Output in file sms_YYYYMMDDHHMMSS.json
+  Recommendation: Validate output with jq"""
 
-  if not os.path.exists(sys.argv[1]):
-    print (f" *File '{sys.argv[1]}' does not exist")
+  argp = argparse.ArgumentParser(description="XLS to Jasmin REST API, output JSON", epilog=arg_epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+  argp.add_argument("xlsfile",      help="XLS filename")
+  argp.add_argument("--nodupl",     help="Dont test duplicate phone numbers", action='store_true')
+  argp.add_argument("--verbose",    help="Print more information", action='store_true')  
+  argp.add_argument("--tn",         help="Testing phone numbers", nargs="+", type=int)  
+  argp.add_argument("--maxpn",      help="Maximum number of phone numbers in output file = divide output to files", type=int, default=0)    
+  argp.add_argument("--maxSMSlen",  help="Maximum characters in message (default: 160)", type=int, default=160)      
+  argp.add_argument("--dataCoding", help="Data coding in SMS (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])      
+  argp.add_argument("--country",    help="Country prefix number (default: 421)", type=str, default="421")      
+  # jq .messages[].to[] sms_.json | wc -l
+  # jq .messages[].content sms_.json
+  # jq .messages[].from sms_.json
+
+  allargs = argp.parse_args()
+
+  if not os.path.exists(allargs.xlsfile):
+    print (f" *File '{allargs.xlsfile}' does not exist")
     sys.exit(2)
 
-  if "--nodupl" in sys.argv:
-    nodupl = True
+  nodupl = allargs.nodupl
+  verbose = allargs.verbose
 
-  if "--verbose" in sys.argv:
-    verbose = True
+  if allargs.tn:
+    for i in allargs.tn:
+      tn = re.search("[0-9]{12}", str(i))
+      if tn != None:
+        testnumbers.append(str(i))
+      else:
+        print (f" *Bad test number: {str(i)}, skiping ...")
+    if verbose and len(testnumbers):
+      print (f" - Test numbers: {testnumbers}")
 
-  for sa in sys.argv:
-    tn = re.search("--tn(:[0-9]{12})+", sa)
-    if tn != None:
-      tnx = tn.group().strip().split(':')
-      for i in range(1, len(tnx)):
-        # testing proper format
-        x = re.match(restr, tnx[i])
-        if x != None:
-          testnumbers.append(tnx[i])
-      if verbose:
-        print (f" - Test numbers: {testnumbers}")
-      continue
+  if allargs.maxpn:
+    maxpn = allargs.maxpn
+    if verbose:
+      print (f" - Max. numbers in output: {maxpn}")
 
-    tn = re.search("--maxpn:[0-9]{1,5}", sa)
-    if tn != None:
-      maxpn = tn.group().split(':')[1]
-      if verbose:
-        print (f" - Max. numbers in output: {maxpn}")
-      continue
+  maxsmslen = allargs.maxSMSlen
+  coding = allargs.dataCoding
+  country = allargs.country
 
-    tn = re.search("--maxSMSlen:[0-9]{1,3}", sa)
-    if tn != None:
-      maxsmslen = tn.group().split(':')[1]
-      continue
-
-    tn = re.search("--dataCoding:[0-9]{1}", sa)
-    if tn != None:
-      coding = tn.group().split(':')[1]
-      continue
-
-    tn = re.search("--country:[0-9]{3}", sa)
-    if tn != None:
-      country = tn.group().split(':')[1]
-      continue
+  tn = re.search("^[0-9]{3}$", country)
+  if tn == None:
+    print (f" *Bad country prefix: {country}")
+    sys.exit(9)
 
   if verbose:
+    print (" - Test duplicity:  " + ("True" if not nodupl else "False") )
     print (f" - Max. SMS length: {maxsmslen}")
     print (f" - Country set to: '{country}'")
     print (f" - Coding set to:   {coding}")
@@ -313,4 +304,4 @@ if __name__ == "__main__":
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(sys.argv[1], f"sms_{dtm}", int(coding), restr, nodupl, verbose, testnumbers, int(maxsmslen), int(maxpn))
+  perform(allargs.xlsfile, f"sms_{dtm}", int(coding), restr, nodupl, verbose, testnumbers, int(maxsmslen), int(maxpn))
