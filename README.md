@@ -21,3 +21,18 @@ XLS format:
 -  3rd and next rows: phone number              
 
 Output in file sms_YYYYMMDDHHMMSS.json  (or sms_YYYYMMDDHHMMSS_N.json with --maxpn option).               
+
+# Tip  
+
+Use --maxSMSlen 0 to show message text.  
+Example:  
+  *python xls2jra.py small_test.xls --nodupl --verbose --maxSMSlen 0*  
+  
+Output:  
+ *\- Test duplicity:      False  
+ \- Max. SMS length:     0  
+ \- Check county prefix: No  
+ \- Coding set to:       8  
+ \*Message too long (36): 'Vitajte v našej skutočnej aplikácii!'  
+ \*Found problems, resolve and try again*  
+
