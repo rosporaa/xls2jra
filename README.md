@@ -6,13 +6,13 @@ Jasmin is an open-source SMS Gateway with many enterprise-class features (suppor
 Usage: *python xls2jra.py xlsfile [--verbose] [--nodupl] [--tn PHONENUM [PHONENUM]] [--maxpn NUMBER] [--maxSMSlen NUMBER] [--dataCoding NUMBER] [--country NUMBER] [--url URL] [--auth AUTH]*    
 -    --verbose - print more information        
 -    --nodupl - don't test duplicate phone numbers        
--    --tn PHONENUM [PHONENUM ...] - testing phone numbers         
+-    --tn PHONENUM [PHONENUM ...] - test phone numbers         
 -    --maxpn NUMBER - maximum number of phone numbers in output file = divide output to files          
 -    --maxSMSlen NUMBER - maximum characters in message (default: 160)                   
 -    --dataCoding NUMBER - message text coding (supported 0, 4, 8) (default: 8 - UCS2)                      
 -    --country NUMBER - check country prefix          
--    --url URL - url to send file(s)   
--    --auth AUTH - authorization data  
+-    --url URL - url (Jasmin's RESTAPI sendbatch) to send JSON (file(s))     
+-    --auth AUTH - authorization data (base64 encoded string)  
 
 XLS format:   
 -  Only one column             
