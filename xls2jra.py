@@ -10,7 +10,7 @@
 # Output in file sms_YYYYMMDDHHMMSS.json
 # With argument maxpn output will be divided to files sms_YYYYMMDDHHMMSS_N.json 
 # 2022 (c) ~Vlna~
-# Requirements: python3, pandas for python
+# Requirements: python3, pandas for python, requests
 
 import json, sys, re, os
 import unicodedata
@@ -20,6 +20,7 @@ import pandas as pd
 # with pandas you need to install xlrd
 # if xlrd does not work (error: xlsx file not supported), install opepyxl and uncomment line below
 from openpyxl.utils.exceptions import InvalidFileException
+import requests
 
 
 # test GSM03.38 characters in message
@@ -240,6 +241,30 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
 
   return filenames
 
+
+def send_files(files, url, auth):
+  headers = ""
+  
+  if auth:
+    headers = {'Authorization': 'Basic ' + auth}
+  
+  for i in files:
+    f = open(i, "r")
+    smsjson = json.load(f)
+    f.close()
+    print (f" - Sending file {i} ...")
+    
+    try:
+      r = requests.post(url, data=json.dumps(smsjson), headers=headers)
+      if r:
+        print (f" - Response: {r.json()} | STATUS_CODE: {r.status_code}")
+      else:
+        print (f" *No response from url {url}")
+    except Exception as e:
+      print (f" *Caught exception calling url: {str(e)}")
+      return
+
+
 # MAIN
 if __name__ == "__main__":
   nodupl = False
@@ -267,8 +292,10 @@ if __name__ == "__main__":
   argp.add_argument("--tn",         help="testing phone numbers", nargs="+", type=int)  
   argp.add_argument("--maxpn",      help="maximum number of phone numbers in output file = divide output to files", type=int, default=0)    
   argp.add_argument("--maxSMSlen",  help="maximum characters in message (default: 160)", type=int, default=160)      
-  argp.add_argument("--dataCoding", help="message text coding (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])      
-  argp.add_argument("--country",    help="check country prefix", type=str, default="")      
+  argp.add_argument("--dataCoding", help="message text coding (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])   
+  argp.add_argument("--country",    help="check country prefix", type=str, default="")        
+  argp.add_argument("--url",        help="url to send file(s)", type=str, default="")
+  argp.add_argument("--auth",       help="authorization data", type=str, default="")
   # jq .messages[].to[] sms_.json | wc -l
   # jq .messages[].content sms_.json
   # jq .messages[].from sms_.json
@@ -284,6 +311,8 @@ if __name__ == "__main__":
   maxsmslen = allargs.maxSMSlen
   coding = allargs.dataCoding
   country = allargs.country
+  url = allargs.url
+  auth = allargs.auth
 
   # test country in phone numbers - make regexp
   if len(country) > 0:
@@ -321,3 +350,6 @@ if __name__ == "__main__":
   dtm = now.strftime("%Y%m%d%H%M%S")
 
   myfiles = perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn)
+  
+  if myfiles and  url:
+    send_files(myfiles, url, auth)
