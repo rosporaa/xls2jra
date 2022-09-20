@@ -170,6 +170,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
     isError = True
 
   if isError == True:
+    print (" *Found problems, resolve and try again")
     sys.exit(4)
 
   # divide output to files
