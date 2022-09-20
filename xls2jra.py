@@ -50,6 +50,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   ntn = 0
   nullarray = []
   xlist = []
+  filenames = []
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
@@ -183,10 +184,14 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         js['messages'] = messages
 
         # create JSON file
-        f = open(jsonfile+"_"+ str(fid) +".json", "w")
-        json.dump(js, f, ensure_ascii=False)
-        f.close()
-        if verbose:
+        try:
+          f = open(jsonfile+"_"+ str(fid) +".json", "w")
+          json.dump(js, f, ensure_ascii=False)
+          f.close()
+          filenames.append(jsonfile+"_"+ str(fid) +".json")          
+          if verbose:
+            print (f" - Output in file: {jsonfile}_{str(fid)}.json")
+        except Exception as e:
           print (f" - Output in file: {jsonfile}_{str(fid)}.json")
 
         tmpnum = []
@@ -204,11 +209,16 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
       js['messages'] = messages
 
       # create JSON file
-      f = open(jsonfile+"_"+ str(fid) +".json", "w")
-      json.dump(js, f, ensure_ascii=False)
-      f.close()
-      if verbose:
-        print (f" - Output in file: {jsonfile}_{str(fid)}.json")
+      try:
+        f = open(jsonfile+"_"+ str(fid) +".json", "w")
+        json.dump(js, f, ensure_ascii=False)
+        f.close()
+        filenames.append(jsonfile+"_"+ str(fid) +".json")
+        if verbose:
+          print (f" - Output in file: {jsonfile}_{str(fid)}.json")
+      except Exception as e:
+        print (f" *Can't write file: {str(e)}")  
+        sys.exit(9)
   else:     # one output file
     js['messages'] = ""
     onemessage['to'] = numbers
@@ -217,12 +227,18 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
     js['messages'] = messages
 
     # create JSON file
-    f = open(jsonfile+".json", "w")
-    json.dump(js, f, ensure_ascii=False)
-    f.close()
-    if verbose:
-      print (f" - Output in file: {jsonfile}.json")
+    try:
+      f = open(jsonfile+".json", "w")
+      json.dump(js, f, ensure_ascii=False)
+      f.close()
+      filenames.append(jsonfile+".json")
+      if verbose:
+        print (f" - Output in file: {jsonfile}.json")
+    except Exception as e:
+      print (f" *Can't write file: {str(e)}")
+      sys.exit(9)
 
+  return filenames
 
 # MAIN
 if __name__ == "__main__":
@@ -234,6 +250,7 @@ if __name__ == "__main__":
   country = ""     # default
   maxsmslen = 160  # default
   pnlen = 12       # phone number length -> 4210948123456 - set for your country
+  myfiles = []
 
   arg_epilog = """
   XLS format: Only one column
@@ -303,4 +320,4 @@ if __name__ == "__main__":
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn)
+  myfiles = perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn)
