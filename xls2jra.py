@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # xls2jra - XLS to Jasmin REST API, JSON output
-# Excel file format (input file):
+# Xls file format (input file):
 #  Only one column
 #   1st row (A1):      Sender ID or phone number - max 11 chars, ONLY A-Z, a-z, 0-9, _, .
-#   2nd row (A2):      SMS text
-#   3rd and next rows: phone number - international format without +, example 421987123456
+#   2nd row (A2):      SMS text (message)
+#   3rd and next rows: phone number - international format without +, example: 421987123456
 # Rows 1 and 2 are mandatory. Minimal one phone number is mandatory. Empty phone numbers(cells) will be skipped.
 # Output in file sms_YYYYMMDDHHMMSS.json
-# With argument maxpn output will be divided to files sms_YYYYMMDDHHMMSS_N.json 
+# With argument --maxpn output will be divided to files sms_YYYYMMDDHHMMSS_N.json 
 # 2022 (c) ~Vlna~
 # Requirements: python3, pandas for python, requests
 
@@ -23,7 +23,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 import requests
 
 
-# test GSM03.38 characters in message
+# check GSM03.38 characters in message
 def test_gsm0338(text):
   gsm0338 = '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà'
 
@@ -39,7 +39,7 @@ def test_gsm0338(text):
   return False
 
 
-# perform all actions
+# perform all actions - make JSON files
 def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn):
   js = {}
   onemessage = {}
@@ -62,7 +62,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   # 2nd row - message, length max maxsmslen,
   # next row(s) - phone number to deliver message
   try:
-    #df = pd.read_excel(xlsfile, header=None)
+    #df = pd.read_excel(xlsfile, header=None) <- default engine
     df = pd.read_excel(xlsfile, header=None, engine='openpyxl')
   except ValueError as e:
     print (f" *Excel file format error: {str(e)}")
@@ -80,7 +80,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
       sys.exit(7)
 
   maxrow = len(df.iloc[:, 0]) #df.index.stop #df.index[-1]  + 1
-  # row 1 and 2 are mandatory, minimal 1 phone number is mandadory
+  # row 1 and 2 are mandatory, at least one phone number is mandadory
   nullarray = df.isnull()
   natmp = nullarray
   countNotNULL = natmp[natmp[0] == False].count()
@@ -90,7 +90,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
     sys.exit(5)
 
   # where to insert test numbers
-  if (countNotNULL[0] - 2) > 12  and  testnumbers:          # minus 1st and second row
+  if (countNotNULL[0] - 2) > 12  and  testnumbers:          # minus 1st and second row, dont add test numbers if less than 10 rows in xls file
     insertrow = int((countNotNULL[0] - 2)/len(testnumbers))
     if verbose:
       print (f" - NonEpty rows: {countNotNULL[0]}, Test numbers: {len(testnumbers)}, Insert every: {insertrow}")
@@ -98,12 +98,12 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
   for r in range (0, maxrow):
     strr = str(df.iloc[r, 0])
     
-    # 1st row - sender ID -  (match) from O2
+    # 1st row - sender ID -  (match) from SMS provider
     if r == 0:
       if nullarray[0][r]:
         print (" *Error: 1st line empty!")
         sys.exit(6)
-      x = re.match('^(?=.*[\.\w])(?=.*[a-zA-Z]).{0,11}$', strr)
+      x = re.match('^(?=.*[\.\w])(?=.*[a-zA-Z]).{0,11}$', strr)  # match from SMS provider
       y = re.match('^421940682[0-9]{3}$', strr)
       if x == None  and  y == None:
         print (f" *Bad format sender ID: {strr}")
@@ -111,7 +111,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         continue
       onemessage['from'] = strr
       
-    # 2nd row - message - maxsmslen characters, test coding
+    # 2nd row - message - maxsmslen characters, testing encoding
     if r == 1:
       if nullarray[0][r]:
         print (" *Error: 2st line empty!")
@@ -143,7 +143,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         print (f" *Unsupported message coding: '{str(onemessage['coding'])}'")
         isError = True
 
-    # next rows - phone numbers
+    # next rows - phone number
     if r > 1:  
       if nullarray[0][r]:
         continue
@@ -155,7 +155,7 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
         continue
 
       numbers.append(strr)  
-      # add testnumbers
+      # add test number
       ncount += 1
       if testnumbers  and  len(testnumbers) > ntn  and  insertrow > 1  and  ncount%insertrow == 0:
         x = re.match(restr, testnumbers[ntn])
@@ -289,13 +289,13 @@ if __name__ == "__main__":
   argp.add_argument("xlsfile",      help="XLS filename (mandatory)")
   argp.add_argument("--verbose",    help="print more information", action='store_true')    
   argp.add_argument("--nodupl",     help="don't test duplicate phone numbers", action='store_true')
-  argp.add_argument("--tn",         help="testing phone numbers", nargs="+", type=int)  
+  argp.add_argument("--tn",         help="test phone numbers", nargs="+", type=int)  
   argp.add_argument("--maxpn",      help="maximum number of phone numbers in output file = divide output to files", type=int, default=0)    
   argp.add_argument("--maxSMSlen",  help="maximum characters in message (default: 160)", type=int, default=160)      
   argp.add_argument("--dataCoding", help="message text coding (supported 0, 4, 8) (default: 8 - UCS2)", type=int, default=8, choices=[0, 4, 8])   
   argp.add_argument("--country",    help="check country prefix", type=str, default="")        
-  argp.add_argument("--url",        help="url to send file(s)", type=str, default="")
-  argp.add_argument("--auth",       help="authorization data", type=str, default="")
+  argp.add_argument("--url",        help="url (Jasmin's RESTAPI sendbatch) to send JSON (file(s))", type=str, default="")
+  argp.add_argument("--auth",       help="authorization data (base64 encoded string)", type=str, default="")
   # jq .messages[].to[] sms_.json | wc -l
   # jq .messages[].content sms_.json
   # jq .messages[].from sms_.json
@@ -325,6 +325,7 @@ if __name__ == "__main__":
   else:
     restr = '^[0-9]{' + str(pnlen) + '}$'
 
+  # test numbers
   if allargs.tn:
     for i in allargs.tn:
       tn = re.search(restr, str(i))
