@@ -40,7 +40,7 @@ def test_gsm0338(text):
 
 
 # perform all actions - make JSON files
-def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn):
+def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn, batch_config):
   js = {}
   onemessage = {}
   messages = []
@@ -55,6 +55,8 @@ def perform(xlsfile, jsonfile, coding, restr, nodupl, verbose, testnumbers, maxs
 
   # data_coding 0 -> GSM03.38,4 -> 8-bit binary, 8 -> UCS2
   onemessage = {"coding": coding, "from":"", "content":"", "to":""}
+  if batch_config  and  (batch_config['callback_url']  or  batch_config['errback_url']):
+    js['batch_config'] = batch_config
 
   # read xls[x] file in desired format
   # ONLY one column
@@ -277,6 +279,7 @@ if __name__ == "__main__":
   maxsmslen = 160  # default
   pnlen = 12       # phone number length -> 4210948123456 - set for your country
   myfiles = []
+  batch_config = {"callback_url":"", "errback_url":""}
 
   arg_epilog = """
   XLS format: Only one column
@@ -297,6 +300,8 @@ if __name__ == "__main__":
   argp.add_argument("--country",    help="check country prefix", type=str, default="")        
   argp.add_argument("--url",        help="url (Jasmin's RESTAPI sendbatch) to send JSON (file(s))", type=str, default="")
   argp.add_argument("--auth",       help="authorization data (base64 encoded string)", type=str, default="")
+  argp.add_argument("--callback",   help="callback_url for successfuly sent messages", type=str, default = "")
+  argp.add_argument("--errback",    help="errback_url for unsuccessfuly sent messages", type=str, default = "")
   # jq .messages[].to[] sms_.json | wc -l
   # jq .messages[].content sms_.json
   # jq .messages[].from sms_.json
@@ -314,6 +319,8 @@ if __name__ == "__main__":
   country = allargs.country
   url = allargs.url
   auth = allargs.auth
+  batch_config['callback_url'] = allargs.callback
+  batch_config['errback_url'] = allargs.errback
 
   # test country in phone numbers - make regexp
   if len(country) > 0:
@@ -347,11 +354,14 @@ if __name__ == "__main__":
     print (f" - Max. SMS length:     {maxsmslen}")
     print (" - Check county prefix: " + ("No" if not len(country) else  f"'{country}'"))
     print (f" - Coding set to:       {coding}")
+    if batch_config['callback_url']  or  batch_config['errback_url']:
+      print(f" - Callback URL:        '{batch_config['callback_url']}'")
+      print(f" - Errback URL:         '{batch_config['errback_url']}'")
 
   now = datetime.now()
   dtm = now.strftime("%Y%m%d%H%M%S")
 
-  myfiles = perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn)
+  myfiles = perform(allargs.xlsfile, f"sms_{dtm}", coding, restr, nodupl, verbose, testnumbers, maxsmslen, maxpn, batch_config)
   
   if myfiles and  url:
     send_files(myfiles, url, auth)
