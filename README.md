@@ -3,7 +3,7 @@ xls2jra - XLS to Jasmin REST API, output JSON | 2022 (c) ~ Vlna ~
 Jasmin is an open-source SMS Gateway with many enterprise-class features (support HTTP and SMPP protocols).   
 
      
-Usage: *python xls2jra.py xlsfile [--verbose] [--nodupl] [--tn PHONENUM [PHONENUM]] [--maxpn NUMBER] [--maxSMSlen NUMBER] [--dataCoding NUMBER] [--country NUMBER] [--url URL] [--auth AUTH]*    
+Usage: *python xls2jra.py xlsfile [--verbose] [--nodupl] [--tn PHONENUM [PHONENUM]] [--maxpn NUMBER] [--maxSMSlen NUMBER] [--dataCoding NUMBER] [--country NUMBER] [--url URL] [--auth AUTH] [--callback CALLBACKURL] [--errback ERRBACKURL]*    
 -    --verbose - print more information        
 -    --nodupl - don't test duplicate phone numbers        
 -    --tn PHONENUM [PHONENUM ...] - test phone numbers         
@@ -13,6 +13,8 @@ Usage: *python xls2jra.py xlsfile [--verbose] [--nodupl] [--tn PHONENUM [PHONENU
 -    --country NUMBER - check country prefix          
 -    --url URL - url (Jasmin's RESTAPI sendbatch) to send JSON (file(s))     
 -    --auth AUTH - authorization data (base64 encoded string)  
+-    --callback - callback url for successfuly sent messages   
+-    --errback - callback url for unsuccessfuly sent messages   
 
 XLS format:   
 -  Only one column             
