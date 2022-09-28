@@ -300,8 +300,8 @@ if __name__ == "__main__":
   argp.add_argument("--country",    help="check country prefix", type=str, default="")        
   argp.add_argument("--url",        help="url (Jasmin's RESTAPI sendbatch) to send JSON (file(s))", type=str, default="")
   argp.add_argument("--auth",       help="authorization data (base64 encoded string)", type=str, default="")
-  argp.add_argument("--callback",   help="callback_url for successfuly sent messages", type=str, default = "")
-  argp.add_argument("--errback",    help="errback_url for unsuccessfuly sent messages", type=str, default = "")
+  argp.add_argument("--callback",   help="callback url for successfuly sent messages", type=str, default = "")
+  argp.add_argument("--errback",    help="callback url for unsuccessfuly sent messages", type=str, default = "")
   # jq .messages[].to[] sms_.json | wc -l
   # jq .messages[].content sms_.json
   # jq .messages[].from sms_.json
